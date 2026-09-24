@@ -52,24 +52,23 @@ const STEPS = [
 
 // ── Initial data ──────────────────────────────────────────
 const INIT = {
-  // Step 1
-  fullName: '', email: '', password: '', confirmPassword: '', role: 'guardian',
-  phone: '', specialization: '', hospital: '', licenseNumber: '',
+  // Step 1 - Account (only email + password)
+  email: '', password: '', confirmPassword: '',
 
-  // Step 2
+  // Step 2 - Patient Info
   patientName: '', dob: '', gender: 'Male', bloodGroup: 'B+',
-  patientPhone: '', patientNotes: '', height: '', weight: '',
+  patientPhone: '', patientNotes: '', bp: '', sugarLevel: '',
 
-  // Step 3
+  // Step 3 - Emergency Contacts
   guardianName: '', guardianRelation: '', guardianPhone: '',
   doctorName: '', doctorHospital: '', doctorPhone: '',
   ambulanceName: '', ambulancePhone: '',
 
-  // Step 4
+  // Step 4 - Medical
   cardiacCondition: '', allergies: '', medications: '',
   cardiacHistory: '', medNotes: '',
 
-  // Step 5
+  // Step 5 - Location
   addressSearch: '', latitude: '', longitude: '',
   locationAddress: '', mapsLink: '',
 };
@@ -81,12 +80,9 @@ const PHONE_RE = /^\+?[\d\s\-().]{7,20}$/;
 function validateStep(step, d) {
   const errs = {};
   if (step === 1) {
-    if (!d.fullName.trim())              errs.fullName = 'Full name is required.';
     if (!EMAIL_RE.test(d.email))         errs.email    = 'Enter a valid email address.';
     if (d.password.length < 6)           errs.password = 'Password must be at least 6 characters.';
     if (d.password !== d.confirmPassword) errs.confirmPassword = 'Passwords do not match.';
-    if (d.role === 'doctor' && !d.specialization.trim())
-      errs.specialization = 'Specialization is required for doctors.';
   }
   if (step === 2) {
     if (!d.patientName.trim()) errs.patientName = 'Patient name is required.';
@@ -246,87 +242,40 @@ function StepAccount({ data, onChange, errors }) {
   return (
     <div className="space-y-5">
       <div>
-        <Label required>Full Name</Label>
-        <Input placeholder="e.g. Venkatesh Raju" value={data.fullName}
-          onChange={e => onChange('fullName', e.target.value)} error={errors.fullName} />
-        <FieldError msg={errors.fullName} />
-      </div>
-
-      <div>
         <Label required>Email Address</Label>
         <Input type="email" placeholder="you@example.com" value={data.email}
           onChange={e => onChange('email', e.target.value)} error={errors.email} />
         <FieldError msg={errors.email} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label required>Password</Label>
-          <div className="relative">
-            <Input type={showPw ? 'text' : 'password'} placeholder="Min 6 characters"
-              value={data.password} onChange={e => onChange('password', e.target.value)}
-              error={errors.password} />
-            <button type="button" onClick={() => setShowPw(p => !p)}
-              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <FieldError msg={errors.password} />
+      <div>
+        <Label required>Password</Label>
+        <div className="relative">
+          <Input type={showPw ? 'text' : 'password'} placeholder="Min 6 characters"
+            value={data.password} onChange={e => onChange('password', e.target.value)}
+            error={errors.password} />
+          <button type="button" onClick={() => setShowPw(p => !p)}
+            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+            {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
         </div>
-        <div>
-          <Label required>Confirm Password</Label>
-          <div className="relative">
-            <Input type={showCpw ? 'text' : 'password'} placeholder="Repeat password"
-              value={data.confirmPassword}
-              onChange={e => onChange('confirmPassword', e.target.value)}
-              error={errors.confirmPassword} />
-            <button type="button" onClick={() => setShowCpw(p => !p)}
-              className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
-              {showCpw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <FieldError msg={errors.confirmPassword} />
-        </div>
+        <FieldError msg={errors.password} />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <Label required>Role</Label>
-          <Select value={data.role} onChange={e => onChange('role', e.target.value)}>
-            {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-          </Select>
+      <div>
+        <Label required>Confirm Password</Label>
+        <div className="relative">
+          <Input type={showCpw ? 'text' : 'password'} placeholder="Repeat password"
+            value={data.confirmPassword}
+            onChange={e => onChange('confirmPassword', e.target.value)}
+            error={errors.confirmPassword} />
+          <button type="button" onClick={() => setShowCpw(p => !p)}
+            className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+            {showCpw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
         </div>
-        <div>
-          <Label>Phone Number</Label>
-          <Input type="tel" placeholder="+91 98765 43210" value={data.phone}
-            onChange={e => onChange('phone', e.target.value)} />
-        </div>
+        <FieldError msg={errors.confirmPassword} />
       </div>
-
-      {data.role === 'doctor' && (
-        <div className="p-4 bg-blue-50 rounded-xl border border-blue-100 space-y-4">
-          <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Professional Details</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <Label required>Specialization</Label>
-              <Input placeholder="e.g. Cardiologist" value={data.specialization}
-                onChange={e => onChange('specialization', e.target.value)}
-                error={errors.specialization} />
-              <FieldError msg={errors.specialization} />
-            </div>
-            <div>
-              <Label>Hospital / Clinic</Label>
-              <Input placeholder="e.g. Apollo Hospital" value={data.hospital}
-                onChange={e => onChange('hospital', e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <Label>Medical License Number</Label>
-            <Input placeholder="e.g. MH-12345" value={data.licenseNumber}
-              onChange={e => onChange('licenseNumber', e.target.value)} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -379,14 +328,14 @@ function StepPatient({ data, onChange, errors }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <Label>Height</Label>
-          <Input placeholder="e.g. 172 cm" value={data.height}
-            onChange={e => onChange('height', e.target.value)} />
+          <Label>BP</Label>
+          <Input placeholder="e.g. 120/80 mmHg" value={data.bp}
+            onChange={e => onChange('bp', e.target.value)} />
         </div>
         <div>
-          <Label>Weight</Label>
-          <Input placeholder="e.g. 74 kg" value={data.weight}
-            onChange={e => onChange('weight', e.target.value)} />
+          <Label>Sugar Level</Label>
+          <Input placeholder="e.g. 100 mg/dL" value={data.sugarLevel}
+            onChange={e => onChange('sugarLevel', e.target.value)} />
         </div>
       </div>
 
@@ -604,54 +553,77 @@ function StepLocation({ data, onChange }) {
     map.setView([lat, lng], 15);
   }, [setLocation]);
 
-  // Init Leaflet map
+  // Init Leaflet map - trigger when step becomes visible
   useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
 
-    // Load Leaflet CSS if not already loaded
-    if (!document.getElementById('leaflet-css')) {
-      const link = document.createElement('link');
-      link.id   = 'leaflet-css';
-      link.rel  = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
-    }
-
-    // Use Leaflet from node_modules (already installed)
-    import('leaflet').then(L_module => {
-      const L = L_module.default || L_module;
-      window.L = L;
-
-      // Fix default marker icon paths
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-      });
-
-      const map = L.map(mapRef.current, { zoomControl: true }).setView([20.5937, 78.9629], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
-      }).addTo(map);
-
-      map.on('click', async (e) => {
-        const { lat, lng } = e.latlng;
-        placeMarker(map, lat, lng);
-        await setLocation(lat, lng);
-      });
-
-      leafletMapRef.current = map;
-      setMapReady(true);
-
-      // If location already set, show it on map
-      if (data.latitude && data.longitude) {
-        placeMarker(map, parseFloat(data.latitude), parseFloat(data.longitude));
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      // Load Leaflet CSS if not already loaded
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link');
+        link.id   = 'leaflet-css';
+        link.rel  = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
       }
-    }).catch(() => setMapError('Could not load map. Check your internet connection.'));
+
+      // Use Leaflet from node_modules (already installed)
+      import('leaflet').then(L_module => {
+        const L = L_module.default || L_module;
+        if (!L) {
+          setMapError('Could not load map library.');
+          return;
+        }
+        window.L = L;
+
+        // Fix default marker icon paths
+        delete L.Icon.Default.prototype._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+          iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+          shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        });
+
+        try {
+          const map = L.map(mapRef.current, { 
+            zoomControl: true,
+            attributionControl: true 
+          }).setView([20.5937, 78.9629], 5);
+          
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19,
+          }).addTo(map);
+
+          map.on('click', async (e) => {
+            const { lat, lng } = e.latlng;
+            placeMarker(map, lat, lng);
+            await setLocation(lat, lng);
+          });
+
+          leafletMapRef.current = map;
+          setMapReady(true);
+          setMapError('');
+
+          // Force map to refresh size
+          setTimeout(() => map.invalidateSize(), 100);
+
+          // If location already set, show it on map
+          if (data.latitude && data.longitude) {
+            placeMarker(map, parseFloat(data.latitude), parseFloat(data.longitude));
+          }
+        } catch (err) {
+          setMapError('Error initializing map: ' + err.message);
+        }
+      }).catch((err) => {
+        setMapError('Could not load map. Check your internet connection.');
+        console.error('Leaflet load error:', err);
+      });
+    }, 100);
 
     return () => {
+      clearTimeout(timer);
       if (leafletMapRef.current) {
         leafletMapRef.current.remove();
         leafletMapRef.current = null;
@@ -852,12 +824,7 @@ function StepReview({ data, onEdit }) {
       </div>
 
       <Section title="Account" icon={User} color="blue" stepId={1} fields={[
-        ['Full Name',       data.fullName],
-        ['Email',          data.email],
-        ['Role',           ROLES.find(r => r.value === data.role)?.label],
-        ['Phone',          data.phone],
-        ['Specialization', data.specialization],
-        ['Hospital',       data.hospital],
+        ['Email', data.email],
       ]} />
 
       <Section title="Patient" icon={Heart} color="green" stepId={2} fields={[
@@ -867,8 +834,8 @@ function StepReview({ data, onEdit }) {
         ['Gender',        data.gender],
         ['Blood Group',   data.bloodGroup],
         ['Phone',         data.patientPhone],
-        ['Height',        data.height],
-        ['Weight',        data.weight],
+        ['BP',            data.bp],
+        ['Sugar Level',   data.sugarLevel],
       ]} />
 
       <Section title="Emergency Contacts" icon={Users} color="orange" stepId={3} fields={[
@@ -948,6 +915,8 @@ export default function Register() {
 
     // Generate username from email prefix
     const username = data.email.split('@')[0].replace(/[^a-z0-9_]/gi, '_').toLowerCase();
+    // Generate a default full name from email if needed
+    const fullName = data.email.split('@')[0].replace(/[._]/g, ' ');
 
     // 1. Register user account
     try {
@@ -956,12 +925,12 @@ export default function Register() {
         email:            data.email,
         password:         data.password,
         confirm_password: data.confirmPassword,
-        full_name:        data.fullName,
-        role:             data.role,
-        phone:            data.phone         || null,
-        specialization:   data.specialization || null,
-        hospital:         data.hospital       || null,
-        license_number:   data.licenseNumber  || null,
+        full_name:        fullName, // Auto-generated from email
+        role:             'guardian', // Default role
+        phone:            null,
+        specialization:   null,
+        hospital:         null,
+        license_number:   null,
       });
     } catch (err) {
       setServerErr(err.message);
@@ -979,7 +948,7 @@ export default function Register() {
       return;
     }
 
-    // 3. Create patient record — send every field the wizard collects
+    // 3. Create patient record
     const age      = ageFromDob(data.dob);
     // Merge cardiac condition + cardiac history into diseases field
     const diseases = [data.cardiacCondition, data.cardiacHistory].filter(Boolean).join('; ') || null;
@@ -995,8 +964,8 @@ export default function Register() {
         gender:            data.gender,
         blood_group:       data.bloodGroup,
         phone:             data.patientPhone  || null,
-        height:            data.height        || null,
-        weight:            data.weight        || null,
+        height:            data.bp            || null, // BP stored in height field for now
+        weight:            data.sugarLevel    || null, // Sugar level stored in weight field for now
         // Guardian
         guardian_name:     data.guardianName     || null,
         guardian_phone:    data.guardianPhone    || null,
