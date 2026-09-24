@@ -172,12 +172,34 @@ class AlertEngine:
     def _check_arrhythmia(self, arrhythmia: Optional[ArrhythmiaResult]) -> None:
         if arrhythmia is None or not arrhythmia.is_abnormal:
             return
+        
+        # ── PVC Detection (High Priority WhatsApp Alert) ──────────────
+        if "PVC" in arrhythmia.flags:
+            if self._should_fire("PVC_DETECTED"):
+                self._fire(AlertEvent(
+                    alert_type="PVC_DETECTED",
+                    severity="critical",
+                    message=f"⚠️ Ventricular Ectopic Beat (PVC) detected. {arrhythmia.details}",
+                    patient_id=self._patient_id,
+                ))
+                logger.critical("PVC ALERT fired for patient %s", self._patient_id)
+        
+        # ── Other Arrhythmias ─────────────────────────────────────────
         if "IRREGULAR_RR" in arrhythmia.flags:
             if self._should_fire("IRREGULAR_RHYTHM"):
                 self._fire(AlertEvent(
                     alert_type="IRREGULAR_RHYTHM",
                     severity="warning",
                     message=f"Irregular rhythm detected: {arrhythmia.rhythm}. {arrhythmia.details}",
+                    patient_id=self._patient_id,
+                ))
+        
+        elif "PREMATURE_BEAT" in arrhythmia.flags:
+            if self._should_fire("PREMATURE_BEAT"):
+                self._fire(AlertEvent(
+                    alert_type="PREMATURE_BEAT",
+                    severity="info",
+                    message=f"Premature beat detected. {arrhythmia.details}",
                     patient_id=self._patient_id,
                 ))
 

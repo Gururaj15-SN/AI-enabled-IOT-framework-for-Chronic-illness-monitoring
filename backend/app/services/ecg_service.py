@@ -63,9 +63,15 @@ class ECGService:
         self._ws_connections: Set[WebSocket] = set()
         self._wifi_manager = WiFiManager(on_sample=self._on_sample)
 
+        # Hardware connection state tracking (ESP32)
+        self._hardware_connected: bool = False
+        self._last_hardware_packet_time: Optional[float] = None
+        self._HARDWARE_TIMEOUT = 3.0  # seconds
+
         self._db_flush_task:   Optional[asyncio.Task] = None
         self._broadcast_task:  Optional[asyncio.Task] = None
         self._analysis_task:   Optional[asyncio.Task] = None
+        self._hardware_watchdog_task: Optional[asyncio.Task] = None
 
     # ── Lifecycle ──────────────────────────────────────────
 
@@ -75,6 +81,7 @@ class ECGService:
         self._db_flush_task  = asyncio.create_task(self._db_flush_loop(),  name="db_flush")
         self._broadcast_task = asyncio.create_task(self._broadcast_loop(), name="ws_broadcast")
         self._analysis_task  = asyncio.create_task(self._analysis_loop(),  name="ecg_analysis")
+        self._hardware_watchdog_task = asyncio.create_task(self._hardware_watchdog_loop(), name="hw_watchdog")
         # Only open a session if a patient has been explicitly set.
         # On a fresh database (no patients yet) _patient_id is None; the
         # session will be opened by the first switch_patient() call from
@@ -93,7 +100,7 @@ class ECGService:
         if self._session_id:
             await self._close_session()
         await self._wifi_manager.stop()
-        for task in (self._db_flush_task, self._broadcast_task, self._analysis_task):
+        for task in (self._db_flush_task, self._broadcast_task, self._analysis_task, self._hardware_watchdog_task):
             if task and not task.done():
                 task.cancel()
                 try:
@@ -523,7 +530,8 @@ class ECGService:
     @property
     def hardware_connected(self) -> bool:
         """True only when a real ESP32 is connected (not mock/simulator)."""
-        return self._wifi_manager._device_ws is not None
+        # Check both WiFiManager connection AND our ESP32 tracking
+        return self._hardware_connected or (self._wifi_manager._device_ws is not None)
     @property
     def active_patient_id(self) -> Optional[str]: return self._patient_id
 
@@ -534,6 +542,35 @@ class ECGService:
 
     def get_live_ecg_window(self, n: int = 250) -> list[float]:
         return list(self._raw_buffer)[-n:]
+
+    # ── Hardware Watchdog Loop ─────────────────────────────
+
+    async def _hardware_watchdog_loop(self) -> None:
+        """
+        Monitor hardware connection timeout (3 seconds of silence).
+        If no packets arrive from ESP32 for 3+ seconds, activate simulator.
+        When packets resume, deactivate simulator.
+        """
+        while True:
+            await asyncio.sleep(1.0)  # Check every second
+            
+            if self._last_hardware_packet_time is None:
+                # No hardware has ever connected
+                continue
+                
+            time_since_last = asyncio.get_event_loop().time() - self._last_hardware_packet_time
+            
+            if time_since_last > self._HARDWARE_TIMEOUT:
+                # Hardware timeout — activate simulator if not already running
+                if self._hardware_connected:
+                    logger.warning("[Hardware Watchdog] No packets for %.1fs — switching to simulator", time_since_last)
+                    self._hardware_connected = False
+                    # WiFiManager will auto-start mock when hardware disconnects
+            else:
+                # Hardware is alive — keep connected status
+                if not self._hardware_connected and self._last_hardware_packet_time:
+                    logger.info("[Hardware Watchdog] Hardware packets resumed")
+                    self._hardware_connected = True
 
 
 # ── Singleton ──────────────────────────────────────────────

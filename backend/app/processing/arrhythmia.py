@@ -159,8 +159,35 @@ def classify(
                                 risk_level=risk, is_abnormal=is_abnormal,
                                 details=details, flags=flags)
 
-    # ── Rule 4: Premature beats (single short RR) ─────────
+    # ── Rule 4: Premature beats (PVC detection) ────────────
+    # PVC (Premature Ventricular Contractions) are detected by:
+    # - Abnormally short RR interval (< 80% of mean)
+    # - Followed by compensatory pause (next RR > 120% of mean)
+    # This pattern is characteristic of ventricular ectopic beats
     successive_diffs = np.abs(np.diff(valid_rr))
+    if len(valid_rr) >= 3:  # Need at least 3 beats to detect pattern
+        for i in range(len(valid_rr) - 2):
+            curr_rr = valid_rr[i]
+            next_rr = valid_rr[i + 1]
+            
+            # PVC pattern: premature beat followed by compensatory pause
+            is_premature = curr_rr < (0.80 * mean_rr)  # Early beat
+            has_pause    = next_rr > (1.20 * mean_rr)  # Compensatory pause
+            
+            if is_premature and has_pause:
+                flags.append("PVC")
+                is_abnormal = True
+                rhythm      = "Ventricular Ectopic Beat (PVC)"
+                confidence  = 85
+                risk        = "High"
+                details     = f"Premature Ventricular Contraction detected (RR: {curr_rr:.3f}s → {next_rr:.3f}s). Requires immediate attention."
+                logger.warning("PVC detected — RR pattern: %.3f → %.3f (mean=%.3f)", 
+                             curr_rr, next_rr, mean_rr)
+                return ArrhythmiaResult(rhythm=rhythm, confidence=confidence,
+                                      risk_level=risk, is_abnormal=is_abnormal,
+                                      details=details, flags=flags)
+    
+    # Fallback: detect any abnormal RR interval changes (old logic)
     if len(successive_diffs) > 0:
         premature_threshold = 0.25 * mean_rr
         if np.any(successive_diffs > premature_threshold):
