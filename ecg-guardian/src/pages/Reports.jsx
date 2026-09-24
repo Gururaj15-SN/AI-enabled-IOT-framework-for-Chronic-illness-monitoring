@@ -168,7 +168,10 @@ export default function Reports() {
       const a    = document.createElement('a');
       a.href     = url;
       a.download = `ecg_report_${selectedSession}.pdf`;
+      // Append to body, click, then remove (required for Firefox and some browsers)
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       setDownloadError(err.message ?? 'Download failed. Ensure the backend is running.');

@@ -14,15 +14,11 @@ import {
 } from 'lucide-react';
 import PatientCard      from '../components/PatientCard';
 import HeartRateCard    from '../components/HeartRateCard';
-import WeeklyHealthCard from '../components/WeeklyHealthCard';
 import LiveECGChart     from '../components/LiveECGChart';
 import AIAnalysisCard   from '../components/AIAnalysisCard';
-import AlertPanel       from '../components/AlertPanel';
-import Timeline         from '../components/Timeline';
 import RiskCard         from '../components/RiskCard';
 import RiskChart        from '../components/RiskChart';
 import Card             from '../components/Card';
-import DeviceTestPanel  from '../components/DeviceTestPanel';
 import { useApp }       from '../context/AppContext';
 import { apiPost }      from '../services/apiClient';
 
@@ -79,11 +75,6 @@ export default function Dashboard() {
   // Send-status state
   const [sending,     setSending]     = useState(false);
   const [sendResult,  setSendResult]  = useState(null);   // null | { success, message, recipients }
-
-  const handleSampleWaveform = useCallback(() => {
-    dispatch({ type: 'SET_ECG_DATA',   payload: [] });
-    dispatch({ type: 'SET_HEART_RATE', payload: 72 });
-  }, [dispatch]);
 
   // ── Send status report ────────────────────────────────
   const handleSendStatus = useCallback(async () => {
@@ -219,29 +210,21 @@ export default function Dashboard() {
       )}
 
       {/* ── Live ECG waveform ─────────────────────────── */}
-      {/* Show DeviceTestPanel only when the backend WS is open but no real
-          ESP32 is connected — i.e. the server is running in mock/simulator mode.
-          When the backend itself is unreachable we show nothing here because
-          the simulator is already running client-side from useWebSocket. */}
-      {state.device.connected && !state.device.hardwareConnected && (
-        <DeviceTestPanel onSampleWaveform={handleSampleWaveform} />
-      )}
       <Card title="Live ECG Waveform" subtitle="Continuous monitoring — Lead II" noPad>
         <div className="p-4">
           <LiveECGChart windowSeconds={10} />
         </div>
       </Card>
 
-      {/* Info cards — 3 columns */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+      {/* Info cards — ROW 1: Patient Information, Heart Rate, Risk Prediction */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <PatientCard />
         <HeartRateCard />
-        <WeeklyHealthCard />
+        <RiskCard />
       </div>
 
-      {/* Risk prediction row */}
+      {/* ROW 2: Risk vs Day chart and AI Analysis */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <RiskCard />
         <div className="lg:col-span-2">
           <Card title="Risk vs Day" subtitle="Last 30 days — cardiac risk trend" noPad>
             <div className="px-2 pb-2">
@@ -249,13 +232,7 @@ export default function Dashboard() {
             </div>
           </Card>
         </div>
-      </div>
-
-      {/* Bottom row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <AIAnalysisCard />
-        <AlertPanel />
-        <Timeline />
       </div>
 
     </div>

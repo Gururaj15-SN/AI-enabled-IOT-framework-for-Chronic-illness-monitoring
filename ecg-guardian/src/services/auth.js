@@ -16,18 +16,46 @@ const USER_KEY    = 'ecg_user_info';
 // ── Registration ──────────────────────────────────────────
 
 export async function registerUser(data) {
-  const res  = await fetch(`${BASE_URL}/auth/register`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(data),
-  });
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detail = body.detail;
-    if (Array.isArray(detail)) throw new Error(detail.map(e => e.msg || JSON.stringify(e)).join(' • '));
-    throw new Error(detail || `Registration failed (HTTP ${res.status}).`);
+  const url = `${BASE_URL}/auth/register`;
+  console.log('Calling registration API:', url);
+  console.log('Request payload:', JSON.stringify(data, null, 2));
+  
+  try {
+    const res = await fetch(url, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(data),
+    });
+    
+    console.log('Registration response status:', res.status, res.statusText);
+    
+    const body = await res.json().catch(() => ({}));
+    console.log('Registration response body:', body);
+    
+    if (!res.ok) {
+      const detail = body.detail;
+      if (Array.isArray(detail)) {
+        // Pydantic validation errors
+        const errors = detail.map(e => {
+          if (e.loc && e.msg) {
+            const field = e.loc.join('.');
+            return `${field}: ${e.msg}`;
+          }
+          return e.msg || JSON.stringify(e);
+        }).join(' • ');
+        throw new Error(errors);
+      }
+      throw new Error(detail || `Registration failed (HTTP ${res.status}).`);
+    }
+    return { user: body };
+  } catch (err) {
+    console.error('Registration API error:', err);
+    // If it's a network error (fetch failed), provide more helpful message
+    if (err.message === 'Failed to fetch' || err.name === 'TypeError') {
+      throw new Error('Cannot connect to server. Please ensure the backend is running on http://localhost:8000');
+    }
+    throw err;
   }
-  return { user: body };
 }
 
 // ── Login ─────────────────────────────────────────────────

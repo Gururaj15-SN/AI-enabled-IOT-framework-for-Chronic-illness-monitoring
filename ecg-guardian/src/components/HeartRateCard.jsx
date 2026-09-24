@@ -23,9 +23,9 @@ export default function HeartRateCard() {
 
   return (
     <Card title="Heart Rate" subtitle="Real-time BPM">
-      <div className="flex items-end justify-between gap-4">
-        {/* BPM display */}
-        <div>
+      <div className="space-y-4">
+        {/* BPM display - centered */}
+        <div className="flex flex-col items-center text-center">
           <div className="flex items-end gap-2 mt-1">
             <span className="text-5xl font-bold text-slate-800 leading-none tabular-nums">
               {hr.current}
@@ -41,8 +41,8 @@ export default function HeartRateCard() {
           <p className="text-[10px] text-slate-400 mt-2">Normal: {hr.normalRange}</p>
         </div>
 
-        {/* Sparkline */}
-        <div className="flex-1 h-16">
+        {/* Sparkline - below metrics */}
+        <div className="w-full h-16">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={sparkData}>
               <Tooltip

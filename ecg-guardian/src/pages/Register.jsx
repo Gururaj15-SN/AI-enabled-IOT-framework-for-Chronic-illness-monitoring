@@ -884,6 +884,7 @@ export default function Register() {
   const [errors,  setErrors]  = useState({});
   const [submitting, setSub]  = useState(false);
   const [serverErr, setServerErr] = useState('');
+  const [success, setSuccess] = useState(false);
 
   const onChange = (key, val) => {
     setData(d => ({ ...d, [key]: val }));
@@ -910,14 +911,30 @@ export default function Register() {
   };
 
   const handleSubmit = async () => {
+    console.log('=== Registration Submit Started ===');
     setSub(true);
     setServerErr('');
+    setSuccess(false);
 
-    // Generate username from email prefix
-    const username = data.email.split('@')[0].replace(/[^a-z0-9_]/gi, '_').toLowerCase();
-    // Generate a default full name from email if needed
-    const fullName = data.email.split('@')[0].replace(/[._]/g, ' ');
+    // Generate username from email prefix (ensure uniqueness with timestamp)
+    const emailPrefix = data.email.split('@')[0].replace(/[^a-z0-9_]/gi, '_').toLowerCase();
+    const username = `${emailPrefix}_${Date.now()}`;
+    
+    // Generate a default full name from email (ensure it meets min length of 2)
+    let fullName = data.email.split('@')[0].replace(/[._]/g, ' ').trim();
+    // If too short, use a default or pad it
+    if (fullName.length < 2) {
+      fullName = `User ${emailPrefix}`;
+    }
 
+    console.log('Step 1: Registering user account...');
+    console.log('Registration payload:', {
+      username,
+      email: data.email,
+      full_name: fullName,
+      role: 'guardian'
+    });
+    
     // 1. Register user account
     try {
       await registerUser({
@@ -925,29 +942,41 @@ export default function Register() {
         email:            data.email,
         password:         data.password,
         confirm_password: data.confirmPassword,
-        full_name:        fullName, // Auto-generated from email
+        full_name:        fullName, // Auto-generated from email (min 2 chars)
         role:             'guardian', // Default role
         phone:            null,
         specialization:   null,
         hospital:         null,
         license_number:   null,
+        address:          null,
+        city:             null,
+        state:            null,
+        country:          null,
       });
+      console.log('✓ User account registered successfully');
     } catch (err) {
-      setServerErr(err.message);
+      console.error('✗ Registration failed:', err);
+      // Show detailed error message
+      const errorMessage = err.message || err.toString() || 'Registration failed. Please try again.';
+      setServerErr(errorMessage);
       setSub(false);
       return;
     }
 
+    console.log('Step 2: Auto-login...');
     // 2. Auto-login
     try {
       const { user } = await loginWithCredentials(data.email, data.password);
       dispatch({ type: 'SET_AUTH_USER', payload: user });
+      console.log('✓ Auto-login successful', user);
     } catch (_err) {
+      console.error('✗ Auto-login failed:', _err);
       setServerErr('Account created but login failed. Please go to the login page.');
       setSub(false);
       return;
     }
 
+    console.log('Step 3: Creating patient record...');
     // 3. Create patient record
     const age      = ageFromDob(data.dob);
     // Merge cardiac condition + cardiac history into diseases field
@@ -992,21 +1021,41 @@ export default function Register() {
         registration_date: new Date().toISOString(),
       };
 
-
       // Use apiPost so the token is automatically attached
       const newPatient = await apiPost('/patients', patientPayload);
+      console.log('✓ Patient record created:', newPatient);
 
       // Map backend response to frontend camelCase shape and push to context
       const { patientFromBackend } = await import('../context/AppContext');
       const mapped = patientFromBackend(newPatient);
       dispatch({ type: 'ADD_PATIENT_TO_LIST', payload: mapped });
       dispatch({ type: 'SET_PATIENT',         payload: mapped });
-    } catch {
+      console.log('✓ Patient added to context:', mapped);
+    } catch (err) {
       // Patient creation failure is non-fatal — user can add from Patients page
+      console.error('✗ Patient creation failed (non-fatal):', err);
     }
 
+    console.log('Step 4: Registration completed successfully');
+
+    // Show success state
+    setSuccess(true);
+
+    // Clear registration form data
+    setData(INIT);
+    setErrors({});
+    setStep(1);
     setSub(false);
-    navigate('/', { replace: true });
+
+    console.log('✓ Navigating to dashboard...');
+
+    // Navigate to the dashboard after successful registration.
+    // The route must match the dashboard route in your React Router setup.
+    setTimeout(() => {
+      navigate('/dashboard', { replace: true });
+    }, 500);
+
+    console.log('=== Registration Complete ===');
   };
 
   const stepTitles = [
@@ -1060,6 +1109,16 @@ export default function Register() {
               </div>
             )}
 
+            {success && (
+              <div className="mb-5 flex items-start gap-2 p-4 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
+                <CheckCircle className="w-5 h-5 shrink-0 mt-0.5 text-green-600" />
+                <div>
+                  <p className="font-semibold text-base">Registration completed successfully!</p>
+                  <p className="text-xs mt-1 text-green-700">Redirecting to your dashboard...</p>
+                </div>
+              </div>
+            )}
+
             {step === 1 && <StepAccount  data={data} onChange={onChange} errors={errors} />}
             {step === 2 && <StepPatient  data={data} onChange={onChange} errors={errors} />}
             {step === 3 && <StepContacts data={data} onChange={onChange} errors={errors} />}
@@ -1074,8 +1133,9 @@ export default function Register() {
               <button
                 type="button"
                 onClick={handleBack}
+                disabled={submitting || success}
                 className="flex items-center gap-1.5 px-4 py-2.5 text-sm text-slate-600 border
-                  border-slate-200 rounded-xl hover:bg-white transition-colors"
+                  border-slate-200 rounded-xl hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
                 Back
@@ -1104,14 +1164,27 @@ export default function Register() {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting}
+                disabled={submitting || success}
                 className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold
                   bg-green-600 text-white rounded-xl hover:bg-green-700 active:scale-95
-                  disabled:opacity-60 transition-all shadow-sm"
+                  disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm"
               >
-                {submitting
-                  ? <><Loader2 className="w-4 h-4 animate-spin" />Creating Account…</>
-                  : <><CheckCircle className="w-4 h-4" />Complete Registration</>}
+                {success ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Success!
+                  </>
+                ) : submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating Account…
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    Complete Registration
+                  </>
+                )}
               </button>
             )}
           </div>
